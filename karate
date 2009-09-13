@@ -52,7 +52,7 @@ def process(file):
 		popme = POPM(email=options.me)
 		created = true
 	if options.rate != None:
-		popme.rating = modnumber(popme.rating, options.rate, 1, 255, 127)
+		popme.rating = modnumber(popme.rating, options.rate, 1, 255, options.defrate)
 		touched = True
 	if options.play != None:
 		popme.count = modnumber(popme.count, options.play, 0, None, 0)
