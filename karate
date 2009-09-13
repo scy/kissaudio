@@ -1,0 +1,86 @@
+#!/usr/bin/env python
+
+from mutagen.id3 import ID3, POPM
+from optparse import OptionParser
+
+import os, sys, getpass, platform, re
+
+def email():
+	if 'EMAIL' in os.environ:
+		return os.environ['EMAIL']
+	return getpass.getuser() + '@' + platform.node()
+
+def canonicalize(param):
+	if param == None:
+		return
+	if re.search(r'^[+-=]?[0-9]+$', param) == None:
+		sys.exit('Bad parameter value "{0}".'.format(param))
+	if re.search(r'^[0-9]', param) != None:
+		param = '=' + param
+	return param
+
+def modnumber(setting, value, mini, maxi, default):
+	(mode, num) = (value[0], int(value[1:]))
+	if mode == '=':
+		if maxi != None:
+			num = min(num, maxi)
+		return num
+	if setting == None:
+		setting = default
+	if mode == '+':
+		if maxi != None:
+			return min(setting + num, maxi)
+		else:
+			return setting + num
+	if mode == '-':
+		return max(setting - num, mini)
+	sys.exit('Erm.')
+
+def process(file):
+	touched = False
+	created = False
+	id3 = ID3(file)
+	# Find all POPM frames.
+	popms = id3.getall('POPM')
+	# Find the POPM of "me", if it exists.
+	popme = None
+	for popm in popms:
+		if popm.email == options.me:
+			popme = popm
+			break
+	if popme == None:
+		popme = POPM(email=options.me)
+		created = true
+	if options.rate != None:
+		popme.rating = modnumber(popme.rating, options.rate, 1, 255, 127)
+		touched = True
+	if options.play != None:
+		popme.count = modnumber(popme.count, options.play, 0, None, 0)
+		touched = True
+	if touched:
+		if created:
+			id3.add(popme)
+		id3.save(v1=2)
+	print popme.pprint()
+
+op = OptionParser(usage='Usage: %prog [options] file ...')
+op.add_option('-m', dest='me', default=email(), metavar='ADDR', help='set email address used when writing (default: %default)')
+op.add_option('-r', dest='rate', metavar='NUM', help='set rating, prefix NUM with + or - to increase/decrease; NUM is 1=worst to 255=best, 0=unknown')
+op.add_option('-p', dest='play', metavar='NUM', help='set play count, prefix NUM with + or - to increase/decrease')
+op.add_option('-d', dest='defrate', type='int', default=127, metavar='NUM', help='default rating; used when a relative -r is specified but there is no rating in the file (0 to 255, default: %default)')
+# op.add_option('-q', dest='quiet', action='store_true', default=False, help='set play count, prefix NUM with + or - to increase/decrease')
+(options, args) = op.parse_args()
+
+if len(args) < 1:
+	op.print_help()
+	sys.exit(2)
+
+# Parameter sanity check.
+# TODO: Do this directly using OptionParser.
+options.rate = canonicalize(options.rate)
+options.play = canonicalize(options.play)
+if options.defrate > 255 or options.defrate < 0:
+	sys.exit('-d needs to be between 0 and 255')
+
+for file in args:
+	process(file)
