@@ -50,7 +50,7 @@ def process(file):
 			break
 	if popme == None:
 		popme = POPM(email=options.me)
-		created = true
+		created = True
 	if options.rate != None:
 		popme.rating = modnumber(popme.rating, options.rate, 1, 255, options.defrate)
 		touched = True
